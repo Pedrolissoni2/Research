@@ -1,25 +1,9 @@
-import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import csv
-import json
 import os
 
-headers = {
-  'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,/;q=0.8,application/signed-exchange;v=b3;q=0.7',
-  'accept-language': 'pt-BR,pt-PT;q=0.9,pt;q=0.8,en-US;q=0.7,en;q=0.6',
-  'if-modified-since': 'Wed, 04 Dec 2024 22:05:38 GMT',
-  'priority': 'u=0, i',
-  'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"Linux"',
-  'sec-fetch-dest': 'document',
-  'sec-fetch-mode': 'navigate',
-  'sec-fetch-site': 'same-origin',
-  'sec-fetch-user': '?1',
-  'upgrade-insecure-requests': '1',
-  'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-}
+from utils import fetch_html_tiered
 
 
 def start_next_io_reports(days, key_words, date_limit, path_output, url_list, stats, proxies=None):
@@ -44,9 +28,7 @@ def start_next_io_reports(days, key_words, date_limit, path_output, url_list, st
 
 def request_url(url, proxies):
     print(url)
-    sitecontent = requests.get(url, proxies=proxies, headers=headers, verify=False).content
-    obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
-    return obj_bs4
+    return fetch_html_tiered(url, proxies=proxies) or BeautifulSoup("", "html.parser")
 
 
 def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, data_list, path_output, proxies):
