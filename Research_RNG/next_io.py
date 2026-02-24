@@ -80,8 +80,7 @@ def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, da
 
     next_page = obj_bs4.select_one("span.icon.icon--chevron-right")
 
-
-    if next_page == None and in_limit == True:
+    if next_page != None and in_limit == True:
         return True
     return False
 

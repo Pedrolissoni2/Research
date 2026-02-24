@@ -48,7 +48,7 @@ def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, da
             has_keyword, category = process_response_details(new["href"], key_words)
             data_json = {
                 "website": "the_gamblest",
-                # "category": category.text.strip(),
+                "category": category.text.strip() if category else "",
                 "date": formatted_date,
                 "title": new.text.strip(),
                 "url": new["href"],

@@ -92,13 +92,10 @@ def process_response_details(url, key_words, proxies):
 
     obj_bs4_details = request_url(url, proxies=proxies)
     category_soup = obj_bs4_details.select('div.tags.text-center.position-relative a')
-    if category_soup:
-        last_item = category_soup[-1]
-    else:
-        last_item = None
-        return last_item
+    if not category_soup:
+        return list(sorted(has_keywords)), ""
 
-    category = category_soup.text.strip()
+    category = category_soup[-1].text.strip()
     news_details_texts = obj_bs4_details.select("div.body-text.px-sm-5.article p")
     for news_details in news_details_texts:
         news_details_text = news_details.text

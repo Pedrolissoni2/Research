@@ -91,8 +91,8 @@ def process_response_details(url, key_words, proxies):
     has_keywords = []
 
     obj_bs4_details = request_url(url, proxies=proxies)
-    category_soup = obj_bs4_details.select('span.post-cats a')[-1]
-    category = category_soup.text.strip()
+    cat_tags = obj_bs4_details.select('span.post-cats a')
+    category = cat_tags[-1].text.strip() if cat_tags else ""
     news_details_texts = obj_bs4_details.select("div.entry p")
     for news_details in news_details_texts:
         news_details_text = news_details.text

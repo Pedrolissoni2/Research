@@ -89,6 +89,8 @@ def process_response_details(url, key_words, proxies):
 
     obj_bs4_details = request_url(url, proxies=proxies)
     date = obj_bs4_details.select_one("time.post-date.updated")
+    if not date:
+        return [], "", datetime.now() - timedelta(days=999)
     news_date_str = date["datetime"]
     news_date = datetime.strptime(news_date_str, "%Y-%m-%d")
     formatted_date = news_date.strftime("%Y-%m-%d %H:%M:%S")

@@ -104,10 +104,10 @@ def process_response_details(url, key_words, proxies):
 
     obj_bs4_details = request_url(url, proxies=proxies)
     title_bs4 = obj_bs4_details.select_one("header.td-post-title h1")
-    title = title_bs4.text.strip()
-    
+    title = title_bs4.text.strip() if title_bs4 else ""
+
     category_bs4 = obj_bs4_details.select_one("li.entry-category a")
-    category = category_bs4.text.strip()
+    category = category_bs4.text.strip() if category_bs4 else ""
 
     news_details_texts = obj_bs4_details.select("div.td-post-content p")
     for news_details in news_details_texts:
