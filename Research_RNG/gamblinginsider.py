@@ -1,5 +1,7 @@
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
+
+scraper = cloudscraper.create_scraper()
 from datetime import datetime, timedelta
 import csv
 import json
@@ -28,7 +30,7 @@ def start_gamblinginsider_reports(days, key_words, date_limit, path_output, url_
     page = 1
     while True:
         print(page)
-        obj_bs4 = request_url(f"https://www.gamblinginsider.com/gambling-news/{page}", proxies=proxies)
+        obj_bs4 = request_url(f"https://www.gamblinginsider.com/news/page/{page}", proxies=proxies)
         has_next_page = process_response(obj_bs4, date_limit, key_words, url_list, data_list, path_output, proxies=proxies)
         if has_next_page == True:
             page = page + 1
@@ -45,22 +47,23 @@ def start_gamblinginsider_reports(days, key_words, date_limit, path_output, url_
 def request_url(url, proxies):
     global headers
     print(url)
-    sitecontent = requests.get(url, proxies=proxies, headers=headers, verify=False).content
+    sitecontent = scraper.get(url).content.decode("utf-8", errors="ignore")
     obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
     return obj_bs4
 
 
 def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, data_list, path_output, proxies):
 
-    news = obj_bs4.select("h3 a")
-    # categories = obj_bs4.select("div.td-ss-main-content a.td-post-category")
-    dates = obj_bs4.select("span.date")
+    items = obj_bs4.select("div.post__item-content")
     in_limit = True
 
-    # for new, category, date in zip(news, categories, dates):
-    for new, date in zip(news, dates):
+    for item in items:
+        new = item.select_one("a.post__item--title")
+        date = item.select_one("div.post__item--date")
+        if not new or not date:
+            continue
         news_date_str = date.text.strip()
-        news_date = datetime.strptime(news_date_str, "%d %B, %Y")
+        news_date = datetime.strptime(news_date_str, "%d %b %Y")
         formatted_date = news_date.strftime("%Y-%m-%d %H:%M:%S")
 
         if news_date >= date_limit:
@@ -80,7 +83,7 @@ def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, da
             in_limit = False
             # break
 
-    next_page = obj_bs4.select_one('a.page-link.d-flex.align-items-center')
+    next_page = obj_bs4.select_one('a.next')
 
     if next_page != None and in_limit == True:
         return True
@@ -93,12 +96,9 @@ def process_response_details(url, key_words, proxies):
     obj_bs4_details = request_url(url, proxies=proxies)
     category_soup = obj_bs4_details.select('div.tags.text-center.position-relative a')
     if category_soup:
-        last_item = category_soup[-1]
+        category = category_soup[-1].text.strip()
     else:
-        last_item = None
-        return last_item
-
-    category = category_soup.text.strip()
+        category = ""
     news_details_texts = obj_bs4_details.select("div.body-text.px-sm-5.article p")
     for news_details in news_details_texts:
         news_details_text = news_details.text

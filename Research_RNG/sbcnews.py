@@ -1,5 +1,7 @@
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
+
+scraper = cloudscraper.create_scraper()
 from datetime import datetime, timedelta
 import csv
 import json
@@ -45,32 +47,36 @@ def start_sbcnews_reports(days, key_words, date_limit, path_output, url_list, st
 def request_url(url, proxies):
     global headers
     print(url)
-    sitecontent = requests.get(url, proxies=proxies, headers=headers, verify=False).content
+    sitecontent = scraper.get(url).content.decode("utf-8", errors="ignore")
     obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
     return obj_bs4
 
 
 def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, data_list, path_output, proxies):
 
-    news = obj_bs4.select("h2.post-box-title a")
-    # categories = obj_bs4.select("div.td-ss-main-content a.td-post-category")
-    dates = obj_bs4.select("span.tie-date")
+    cards = obj_bs4.select("a.sbc-article-card")
     in_limit = True
 
-    # for new, category, date in zip(news, categories, dates):
-    for new, date in zip(news, dates):
-        news_date_str = date.text.strip()
+    for card in cards:
+        title_elem = card.select_one("div.sbc-article-card-title")
+        date_elem = card.select_one("div.sbc-article-card-date")
+        category_elem = card.select_one("div.sbc-article-card-category-text")
+        if not title_elem or not date_elem:
+            continue
+        news_date_str = date_elem.text.strip()
         news_date = datetime.strptime(news_date_str, "%B %d, %Y")
         formatted_date = news_date.strftime("%Y-%m-%d %H:%M:%S")
+        article_url = card["href"]
+        category = category_elem.text.strip() if category_elem else ""
 
         if news_date >= date_limit:
-            has_keyword, category = process_response_details(new["href"], key_words, proxies=proxies)
+            has_keyword = process_response_details(article_url, key_words, proxies=proxies)
             data_json = {
                 "website": "sbcnews",
                 "category": category,
                 "date": formatted_date,
-                "title": new.text.strip(),
-                "url": new["href"],
+                "title": title_elem.text.strip(),
+                "url": article_url,
                 "has_keywords": ", ".join(has_keyword),
             }
             if data_json["url"] not in url_list:
@@ -80,7 +86,7 @@ def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, da
             in_limit = False
             break
 
-    next_page = obj_bs4.select_one('span.tie-next-page a')
+    next_page = obj_bs4.select_one('a.next')
 
     if next_page != None and in_limit == True:
         return True
@@ -91,8 +97,6 @@ def process_response_details(url, key_words, proxies):
     has_keywords = []
 
     obj_bs4_details = request_url(url, proxies=proxies)
-    category_soup = obj_bs4_details.select('span.post-cats a')[-1]
-    category = category_soup.text.strip()
     news_details_texts = obj_bs4_details.select("div.entry p")
     for news_details in news_details_texts:
         news_details_text = news_details.text
@@ -100,7 +104,7 @@ def process_response_details(url, key_words, proxies):
             if key_word in news_details_text.lower() and key_word not in has_keywords:
                 # print(news_details_text, key_word)
                 has_keywords.append(key_word)
-    return list(sorted(has_keywords)), category
+    return list(sorted(has_keywords))
 
 
 def save_data(data_list, path_output):

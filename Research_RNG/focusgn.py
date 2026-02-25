@@ -1,10 +1,11 @@
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import csv
 import json
 import os
 
+scraper = cloudscraper.create_scraper()
 
 
 def start_focusgn_reports(days, key_words, date_limit, path_output, url_list, stats):
@@ -28,20 +29,21 @@ def start_focusgn_reports(days, key_words, date_limit, path_output, url_list, st
 
 def request_url(url):
     print(url)
-    sitecontent = requests.get(url).content
+    sitecontent = scraper.get(url).content.decode("utf-8", errors="ignore")
     obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
     return obj_bs4
 
 
 def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, data_list, path_output):
 
-    news = obj_bs4.select("article.br-10.grid-article.bg-w a")
-    # categories = obj_bs4.select("h1.page-title.text-primary.font-light.category-header a")
-    dates = obj_bs4.select("div.article-date.text-primary.font-light.bg-w")
+    articles = obj_bs4.select("article.grid-article")
     in_limit = True
 
-    # for new, category, date in zip(news, categories, dates):
-    for new, date in zip(news, dates):
+    for article in articles:
+        new = article.select_one("a")
+        date = article.select_one("div.article-date")
+        if not new or not date:
+            continue
         news_date_str = date.text.strip()
         news_date = datetime.strptime(news_date_str, "%m/%d/%y")
         formatted_date = news_date.strftime("%Y-%m-%d %H:%M:%S")
@@ -53,7 +55,7 @@ def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, da
                 "website": "focus_gn",
                 "category": category,
                 "date": formatted_date,
-                "title": title_soup.text.strip(),
+                "title": title_soup.text.strip() if title_soup else new.text.strip(),
                 "url": new["href"],
                 "has_keywords": ", ".join(has_keyword),
             }

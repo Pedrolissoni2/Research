@@ -26,7 +26,7 @@ def start_the_gamblest_reports(days, key_words, date_limit, path_output, url_lis
 
 def request_url(url):
     print(url)
-    sitecontent = requests.get(url).content
+    sitecontent = requests.get(url).content.decode("utf-8", errors="ignore")
     obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
     return obj_bs4
 
@@ -41,7 +41,14 @@ def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, da
     # for new, category, date in zip(news, categories, dates):
     for new, date in zip(news, dates):
         news_date_str = date['datetime']
-        news_date = datetime.strptime(news_date_str, "%d-%m-%y / %H:%M")
+        for fmt in ("%Y-%m-%dT%H:%M:%S", "%d-%m-%y / %H:%M", "%Y-%m-%dT%H:%M"):
+            try:
+                news_date = datetime.strptime(news_date_str, fmt)
+                break
+            except ValueError:
+                continue
+        else:
+            raise ValueError(f"Unrecognized date format: {news_date_str!r}")
         formatted_date = news_date.strftime("%Y-%m-%d %H:%M:%S")
 
         if news_date >= date_limit:

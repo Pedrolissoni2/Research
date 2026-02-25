@@ -27,7 +27,7 @@ def start_cgn_reports(days, key_words, date_limit, path_output, url_list, stats)
 
 def request_url(url):
     print(url)
-    sitecontent = requests.get(url).content
+    sitecontent = requests.get(url).content.decode("utf-8", errors="ignore")
     obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
     return obj_bs4
 
@@ -60,11 +60,11 @@ def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, da
                 url_list.append(data_json["url"])
         else:
             in_limit = False
-            # break
+            break
 
     next_page = obj_bs4.select_one("i.fa.fa-angle-double-right")
 
-    if next_page == None and in_limit == True:
+    if next_page != None and in_limit == True:
         return True
     return False
 

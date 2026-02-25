@@ -1,8 +1,11 @@
 import requests
+import urllib3
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import csv
 import json
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import os
 from casinoreports import start_casinoreports_reports
 from yogonet import start_yogonet_reports
@@ -94,7 +97,7 @@ path_output = "C:\\Users\\pedro\\OneDrive\\Área de Trabalho\\Research_RNG\\data
 
 if "news.csv" in os.listdir(path_output):
     output_file = os.path.join(path_output, "news.csv")
-    with open(output_file, mode="r", newline="", encoding="utf-8") as file:
+    with open(output_file, mode="r", newline="", encoding="utf-8-sig") as file:
         file_reader = csv.DictReader(
             file,
             fieldnames=[
@@ -110,25 +113,84 @@ if "news.csv" in os.listdir(path_output):
             if line != 0:
                 url_list.append(row["url"])
 
-# stats = start_casinoreports_reports(days, key_words, date_limit, path_output, url_list, stats)
-# stats = start_yogonet_reports(days, key_words, date_limit, path_output, url_list, stats)
-# stats = start_igb_json_reports(days, key_words, date_limit, path_output, url_list, stats)
-# stats = start_focusgn_reports(days, key_words, date_limit, path_output, url_list, stats)
-# stats = start_the_gamblest_reports(days, key_words, date_limit, path_output, url_list, stats)
-# stats = start_cgn_reports(days, key_words, date_limit, path_output, url_list, stats)
-# stats = start_bigwinboard_reports(days, key_words, date_limit, path_output, url_list, stats)
-# stats = start_igamingfuture_reports(days, key_words, date_limit, path_output, url_list, stats)
-# stats = start_askgamblers_reports(days, key_words, date_limit, path_output, url_list, stats, proxies)
-# stats = start_next_io_reports(days, key_words, date_limit, path_output, url_list, stats, proxies)
-# stats = start_casinobeats_reports(days, key_words, date_limit, path_output, url_list, stats, proxies)
-# stats = start_sbcnews_reports(days, key_words, date_limit, path_output, url_list, stats, proxies)
-# stats = start_guru_news_reports(days, key_words, date_limit, path_output, url_list, stats)
-# stats = start_ig_brazil_reports(days, key_words, date_limit, path_output, url_list, stats)
-# stats = start_gamblinginsider_reports(days, key_words, date_limit, path_output, url_list, stats, proxies)
-# stats = start_europeangaming_reports(days, key_words, date_limit, path_output, url_list, stats, proxies)
-# start_agb_reports(days, key_words, date_limit, path_output, url_list)
+def fix_mojibake(text):
+    """Repair text incorrectly decoded as Windows-1252 instead of UTF-8.
+    E.g. 'â€"' -> '—',  'Ã—' -> '×'
+    """
+    if not text:
+        return text
+    try:
+        return text.encode('cp1252').decode('utf-8')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text
 
+
+def fix_encoding_in_csv():
+    output_file = os.path.join(path_output, "news.csv")
+    if not os.path.exists(output_file):
+        return
+    fieldnames = ["category", "date", "title", "url", "website", "has_keywords"]
+    with open(output_file, encoding='utf-8-sig') as f:
+        rows = list(csv.DictReader(f))
+    fixed = 0
+    for row in rows:
+        for field in ('title', 'category', 'has_keywords'):
+            original = row.get(field, '')
+            repaired = fix_mojibake(original)
+            if repaired != original:
+                row[field] = repaired
+                fixed += 1
+    with open(output_file, mode='w', newline='', encoding='utf-8-sig') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    if fixed:
+        print(f"  Fixed {fixed} encoding issues in CSV.")
+    else:
+        print("  Encoding check done. CSV saved with UTF-8 BOM for Excel compatibility.")
+
+
+errors = []
+
+def run(name, fn, *args):
+    try:
+        return fn(*args)
+    except Exception as e:
+        errors.append({"source": name, "error": str(e)})
+        print(f"[ERROR] {name}: {e}")
+        return stats
+
+stats = run("casinoreports",   start_casinoreports_reports,   days, key_words, date_limit, path_output, url_list, stats)
+stats = run("yogonet",         start_yogonet_reports,         days, key_words, date_limit, path_output, url_list, stats)
+stats = run("igb_json",        start_igb_json_reports,        days, key_words, date_limit, path_output, url_list, stats)
+stats = run("focusgn",         start_focusgn_reports,         days, key_words, date_limit, path_output, url_list, stats)
+stats = run("the_gamblest",    start_the_gamblest_reports,    days, key_words, date_limit, path_output, url_list, stats)
+stats = run("cgn",             start_cgn_reports,             days, key_words, date_limit, path_output, url_list, stats)
+stats = run("bigwinboard",     start_bigwinboard_reports,     days, key_words, date_limit, path_output, url_list, stats)
+stats = run("igamingfuture",   start_igamingfuture_reports,   days, key_words, date_limit, path_output, url_list, stats)
+stats = run("askgamblers",     start_askgamblers_reports,     days, key_words, date_limit, path_output, url_list, stats, proxies)
+stats = run("next_io",         start_next_io_reports,         days, key_words, date_limit, path_output, url_list, stats, proxies)
+stats = run("casinobeats",     start_casinobeats_reports,     days, key_words, date_limit, path_output, url_list, stats, proxies)
+stats = run("sbcnews",         start_sbcnews_reports,         days, key_words, date_limit, path_output, url_list, stats, proxies)
+stats = run("guru_news",       start_guru_news_reports,       days, key_words, date_limit, path_output, url_list, stats)
+stats = run("ig_brazil",       start_ig_brazil_reports,       days, key_words, date_limit, path_output, url_list, stats)
+stats = run("gamblinginsider", start_gamblinginsider_reports, days, key_words, date_limit, path_output, url_list, stats, proxies)
+stats = run("europeangaming",  start_europeangaming_reports,  days, key_words, date_limit, path_output, url_list, stats, proxies)
+stats = run("agb", start_agb_reports, days, key_words, date_limit, path_output, url_list, stats)
+
+
+fix_encoding_in_csv()
 
 print()
+print("=== SUMMARY ===")
 for stat in stats:
-    print(stat["source"], "-", stat["news_count"])
+    print(f"  {stat['source']} - {stat['news_count']} news")
+
+if errors:
+    print()
+    print("=== ERRORS ===")
+    for err in errors:
+        print(f"  {err['source']}: {err['error']}")
+else:
+    print()
+    print("All sources completed successfully.")

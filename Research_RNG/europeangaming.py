@@ -1,5 +1,7 @@
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
+
+scraper = cloudscraper.create_scraper()
 from datetime import datetime, timedelta
 import csv
 import json
@@ -45,28 +47,29 @@ def start_europeangaming_reports(days, key_words, date_limit, path_output, url_l
 def request_url(url, proxies):
     global headers
     print(url)
-    sitecontent = requests.get(url, proxies=proxies, headers=headers, verify=False).content
+    sitecontent = scraper.get(url).content.decode("utf-8", errors="ignore")
     obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
     return obj_bs4
 
 
 def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, data_list, path_output, proxies):
 
-    news = obj_bs4.select("li.mvp-blog-story-wrap.left.relative.infinite-post a")
-    # categories = obj_bs4.select("div.td-ss-main-content a.td-post-category")
+    news = obj_bs4.select("h2.cs-entry__title a")
+    dates = obj_bs4.select("div.cs-meta-date")
     in_limit = True
 
-    # for new, category, date in zip(news, categories, dates):
-    for new in news:
-        has_keyword, formatted_date, news_date = process_response_details(new["href"], key_words, proxies=proxies)
-        title_soup = new.select_one("h2")
+    for new, date in zip(news, dates):
+        news_date_str = date.text.strip()
+        news_date = datetime.strptime(news_date_str, "%B %d, %Y")
+        formatted_date = news_date.strftime("%Y-%m-%d %H:%M:%S")
 
         if news_date >= date_limit:
+            has_keyword = process_response_details(new["href"], key_words, proxies=proxies)
             data_json = {
                 "website": "europeangaming",
                 "category": "",
                 "date": formatted_date,
-                "title": title_soup.text.strip(),
+                "title": new.text.strip(),
                 "url": new["href"],
                 "has_keywords": ", ".join(has_keyword),
             }
@@ -77,9 +80,7 @@ def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, da
             in_limit = False
             break
 
-    next_page = obj_bs4.select_one('div.mvp-inf-more-wrap.left.relative a')
-
-    if next_page != None and in_limit == True:
+    if in_limit and len(news) > 0:
         return True
     return False
 
@@ -88,10 +89,6 @@ def process_response_details(url, key_words, proxies):
     has_keywords = []
 
     obj_bs4_details = request_url(url, proxies=proxies)
-    date = obj_bs4_details.select_one("time.post-date.updated")
-    news_date_str = date["datetime"]
-    news_date = datetime.strptime(news_date_str, "%Y-%m-%d")
-    formatted_date = news_date.strftime("%Y-%m-%d %H:%M:%S")
     news_details_texts = obj_bs4_details.select("div#mvp-content-main p")
     for news_details in news_details_texts:
         news_details_text = news_details.text
@@ -99,7 +96,7 @@ def process_response_details(url, key_words, proxies):
             if key_word in news_details_text.lower() and key_word not in has_keywords:
                 # print(news_details_text, key_word)
                 has_keywords.append(key_word)
-    return list(sorted(has_keywords)), formatted_date, news_date
+    return list(sorted(has_keywords))
 
 
 def save_data(data_list, path_output):

@@ -40,7 +40,7 @@ def start_sbcnews_reports(days, key_words, date_limit, path_output, url_list, pr
 def request_url(url, proxies):
     global headers
     print(url)
-    sitecontent = requests.get(url, proxies=proxies, headers=headers, verify=False).content
+    sitecontent = requests.get(url, proxies=proxies, headers=headers, verify=False).content.decode("utf-8", errors="ignore")
     obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
     return obj_bs4
 

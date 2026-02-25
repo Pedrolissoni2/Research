@@ -27,7 +27,7 @@ def start_guru_news_reports(days, key_words, date_limit, path_output, url_list, 
 
 def request_url(url):
     print(url)
-    sitecontent = requests.get(url).content
+    sitecontent = requests.get(url).content.decode("utf-8", errors="ignore")
     obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
     return obj_bs4
 

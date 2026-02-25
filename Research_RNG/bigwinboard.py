@@ -1,32 +1,18 @@
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import csv
 import json
 import os
 
-headers = {
-  'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,/;q=0.8,application/signed-exchange;v=b3;q=0.7',
-  'accept-language': 'pt-BR,pt-PT;q=0.9,pt;q=0.8,en-US;q=0.7,en;q=0.6',
-  'if-modified-since': 'Wed, 04 Dec 2024 22:05:38 GMT',
-  'priority': 'u=0, i',
-  'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"Linux"',
-  'sec-fetch-dest': 'document',
-  'sec-fetch-mode': 'navigate',
-  'sec-fetch-site': 'same-origin',
-  'sec-fetch-user': '?1',
-  'upgrade-insecure-requests': '1',
-  'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
-}
+scraper = cloudscraper.create_scraper()
 
 def start_bigwinboard_reports(days, key_words, date_limit, path_output, url_list, stats):
     data_list = []
     page = 1
     while True:
         print(page)
-        obj_bs4 = request_url(f"https://www.bigwinboard.com/news/?_page={page}")
+        obj_bs4 = request_url(f"https://www.bigwinboard.com/news/?bwb_news_page={page}")
         has_next_page = process_response(obj_bs4, date_limit, key_words, url_list, data_list, path_output)
         if has_next_page == True:
             page = page + 1
@@ -41,24 +27,23 @@ def start_bigwinboard_reports(days, key_words, date_limit, path_output, url_list
 
 
 def request_url(url):
-    global headers
     print(url)
-    sitecontent = requests.get(url, headers=headers).content
+    sitecontent = scraper.get(url).content.decode("utf-8", errors="ignore")
     obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
     return obj_bs4
 
 
 def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, data_list, path_output):
-    news = obj_bs4.select("h5.pt-cv-title a")
-    # categories = obj_bs4.select("p.post-preview__term.mb-mini a")
-    dates = obj_bs4.select("span.entry-date time")
+    cards = obj_bs4.select("div.pg-card")
     in_limit = True
 
-    for new, date in zip(news, dates):
-        # for new, date in zip(news, dates):
-        news_date_str = date["datetime"]
-        news_date = datetime.fromisoformat(news_date_str)
-        news_date = news_date.replace(tzinfo=None)
+    for card in cards:
+        new = card.select_one("a.pg-title")
+        date = card.select_one("div.pg-date-top")
+        if not new or not date:
+            continue
+        news_date_str = date.text.strip()
+        news_date = datetime.strptime(news_date_str, "%B %d, %Y")
         formatted_date = news_date.strftime("%Y-%m-%d %H:%M:%S")
 
         if news_date >= date_limit:
@@ -78,7 +63,7 @@ def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, da
             in_limit = False
             # break
 
-    next_page = obj_bs4.select_one("li.cv-pageitem-next a")
+    next_page = obj_bs4.select_one("a.next")
 
     if next_page != None and in_limit == True:
         return True

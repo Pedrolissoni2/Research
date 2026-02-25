@@ -1,5 +1,7 @@
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
+
+scraper = cloudscraper.create_scraper()
 from datetime import datetime, timedelta
 import csv
 import json
@@ -44,7 +46,7 @@ def start_casinobeats_reports(days, key_words, date_limit, path_output, url_list
 def request_url(url, proxies):
     global headers
     print(url)
-    sitecontent = requests.get(url, proxies=proxies, headers=headers, verify=False).content
+    sitecontent = scraper.get(url).content.decode("utf-8", errors="ignore")
     obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
     return obj_bs4
 

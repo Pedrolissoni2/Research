@@ -1,5 +1,7 @@
-import requests
+import cloudscraper
 from bs4 import BeautifulSoup
+
+scraper = cloudscraper.create_scraper()
 from datetime import datetime, timedelta
 import csv
 import json
@@ -44,19 +46,21 @@ def start_next_io_reports(days, key_words, date_limit, path_output, url_list, st
 
 def request_url(url, proxies):
     print(url)
-    sitecontent = requests.get(url, proxies=proxies, headers=headers, verify=False).content
+    sitecontent = scraper.get(url).content.decode("utf-8", errors="ignore")
     obj_bs4 = BeautifulSoup(sitecontent, "html.parser")
     return obj_bs4
 
 
 def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, data_list, path_output, proxies):
-    news = obj_bs4.select("div.posts-block.hero__block p.small-card__title a")
-    categories = obj_bs4.select("div.posts-block.hero__block a.small-card__subtitle-category.hover--opacity-fade")
-    dates = obj_bs4.select("div.posts-block.hero__block p.small-card__subtitle-info")
+    cards = obj_bs4.select("div.small-card")
     in_limit = True
 
-    for new, category, date in zip(news, categories, dates):
-        # for new, date in zip(news, dates):
+    for card in cards:
+        new = card.select_one("p.small-card__title a")
+        category = card.select_one("a.small-card__subtitle-category")
+        date = card.select_one("p.small-card__subtitle-info")
+        if not new or not date:
+            continue
         news_date_str = date.text.split(" - ")[-1].strip()
         news_date = datetime.strptime(news_date_str, "%d %b, %Y")
         formatted_date = news_date.strftime("%Y-%m-%d %H:%M:%S")
@@ -65,7 +69,7 @@ def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, da
             has_keyword = process_response_details(new["href"], key_words, proxies=proxies)
             data_json = {
                 "website": "next_io",
-                "category": category.text.strip(),
+                "category": category.text.strip() if category else "",
                 "date": formatted_date,
                 "title": new.text.strip(),
                 "url": new["href"],
@@ -78,10 +82,7 @@ def process_response(obj_bs4: BeautifulSoup, date_limit, key_words, url_list, da
             in_limit = False
             break
 
-    next_page = obj_bs4.select_one("span.icon.icon--chevron-right")
-
-
-    if next_page == None and in_limit == True:
+    if in_limit and len(cards) > 0:
         return True
     return False
 
